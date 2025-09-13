@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detector</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .text-gradient {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .result-box {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        .result-box.safe {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .result-box.warning {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main Container -->
+    <div class="space-y-8 w-full max-w-4xl">
+
+        <!-- Header and Retrain Button -->
+        <div class="flex flex-col md:flex-row items-center justify-between w-full">
+            <h1 class="text-4xl font-extrabold text-gray-800 text-gradient mb-4 md:mb-0">Phishing Detector</h1>
+            <button id="retrain-btn"
+                    class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-4 rounded-full transition-colors shadow-lg">
+                Retrain Models
+            </button>
+        </div>
+
+        <!-- Cards Container -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- URL Checker Card -->
+            <div class="bg-white p-8 rounded-xl shadow-2xl flex flex-col space-y-6">
+                <h2 class="text-2xl font-bold text-gray-700">Check a URL</h2>
+                <input type="text" id="url-input" placeholder="Enter a URL (e.g., example.com)"
+                       class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-colors">
+                <button id="check-url-btn"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors shadow-md">
+                    Analyze URL
+                </button>
+                <div id="url-result" class="p-4 rounded-lg bg-gray-50 border border-gray-200 min-h-[100px] flex items-center justify-center text-center text-gray-500">
+                    Results will appear here.
+                </div>
+            </div>
+
+            <!-- SMS Checker Card -->
+            <div class="bg-white p-8 rounded-xl shadow-2xl flex flex-col space-y-6">
+                <h2 class="text-2xl font-bold text-gray-700">Check an SMS</h2>
+                <textarea id="sms-input" rows="3" placeholder="Enter SMS text..."
+                          class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-colors"></textarea>
+                <button id="check-sms-btn"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors shadow-md">
+                    Analyze SMS
+                </button>
+                <div id="sms-result" class="p-4 rounded-lg bg-gray-50 border border-gray-200 min-h-[100px] flex items-center justify-center text-center text-gray-500">
+                    Results will appear here.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Message Modal (hidden by default) -->
+    <div id="messageModal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <h3 id="messageModalTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="messageModalText" class="text-gray-600 mb-6"></p>
+            <button id="messageModalBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">OK</button>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal (hidden by default) -->
+    <div id="confirmModal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <h3 id="confirmModalTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="confirmModalText" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmModalYes" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">Yes</button>
+                <button id="confirmModalCancel" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlInput = document.getElementById('url-input');
+            const smsInput = document.getElementById('sms-input');
+            const checkUrlBtn = document.getElementById('check-url-btn');
+            const checkSmsBtn = document.getElementById('check-sms-btn');
+            const retrainBtn = document.getElementById('retrain-btn');
+            const urlResultDiv = document.getElementById('url-result');
+            const smsResultDiv = document.getElementById('sms-result');
+
+            // Modal elements
+            const messageModal = document.getElementById('messageModal');
+            const messageModalTitle = document.getElementById('messageModalTitle');
+            const messageModalText = document.getElementById('messageModalText');
+            const messageModalBtn = document.getElementById('messageModalBtn');
+
+            const confirmModal = document.getElementById('confirmModal');
+            const confirmModalTitle = document.getElementById('confirmModalTitle');
+            const confirmModalText = document.getElementById('confirmModalText');
+            const confirmModalYes = document.getElementById('confirmModalYes');
+            const confirmModalCancel = document.getElementById('confirmModalCancel');
+
+            let currentConfirmCallback = null;
+
+            // Function to show a simple message modal
+            function showMessageModal(title, message) {
+                messageModalTitle.textContent = title;
+                messageModalText.textContent = message;
+                messageModal.classList.remove('hidden');
+            }
+
+            // Function to show a confirmation modal
+            function showConfirmModal(title, message, onConfirm) {
+                confirmModalTitle.textContent = title;
+                confirmModalText.textContent = message;
+                currentConfirmCallback = onConfirm;
+                confirmModal.classList.remove('hidden');
+            }
+
+            // Hide modals when their buttons are clicked
+            messageModalBtn.addEventListener('click', () => {
+                messageModal.classList.add('hidden');
+            });
+
+            confirmModalYes.addEventListener('click', () => {
+                confirmModal.classList.add('hidden');
+                if (currentConfirmCallback) {
+                    currentConfirmCallback(true);
+                }
+            });
+
+            confirmModalCancel.addEventListener('click', () => {
+                confirmModal.classList.add('hidden');
+                if (currentConfirmCallback) {
+                    currentConfirmCallback(false);
+                }
+            });
+
+            // --- Event Handlers (using fetch to talk to the backend) ---
+
+            checkUrlBtn.addEventListener('click', async () => {
+                const url = urlInput.value.trim();
+                if (!url) {
+                    showMessageModal('Error', 'Please enter a URL to check.');
+                    return;
+                }
+
+                urlResultDiv.innerHTML = `<span class="text-gray-500">Analyzing...</span>`;
+                
+                try {
+                    const response = await fetch('/check-url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Unknown server error');
+                    }
+
+                    const result = await response.json();
+                    console.log('URL analysis result:', result);
+
+                    const colorClass = result.prediction.toLowerCase() === 'phishing' ? 'warning' : 'safe';
+                    const textColor = result.prediction.toLowerCase() === 'phishing' ? 'text-red-600' : 'text-green-600';
+                    urlResultDiv.innerHTML = `
+                        <div class="result-box ${colorClass} text-left space-y-2">
+                            <p class="text-sm font-normal text-gray-500">Analysis complete:</p>
+                            <p class="text-xl font-bold ${textColor}">${result.prediction}</p>
+                            <p class="text-base text-gray-700 font-normal">Risk Score: <span class="font-bold">${result.risk_score}%</span></p>
+                            <p class="text-sm text-gray-500 font-normal">Explanation: ${result.explanation}</p>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error('Error fetching URL analysis:', error);
+                    urlResultDiv.innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+                }
+            });
+
+            checkSmsBtn.addEventListener('click', async () => {
+                const sms = smsInput.value.trim();
+                if (!sms) {
+                    showMessageModal('Error', 'Please enter SMS text to check.');
+                    return;
+                }
+
+                smsResultDiv.innerHTML = `<span class="text-gray-500">Analyzing...</span>`;
+
+                try {
+                    const response = await fetch('/check-sms', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sms })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Unknown server error');
+                    }
+
+                    const result = await response.json();
+                    console.log('SMS analysis result:', result);
+
+                    const colorClass = result.prediction.toLowerCase() === 'phishing' ? 'warning' : 'safe';
+                    const textColor = result.prediction.toLowerCase() === 'phishing' ? 'text-red-600' : 'text-green-600';
+                    smsResultDiv.innerHTML = `
+                        <div class="result-box ${colorClass} text-left space-y-2">
+                            <p class="text-sm font-normal text-gray-500">Analysis complete:</p>
+                            <p class="text-xl font-bold ${textColor}">${result.prediction}</p>
+                            <p class="text-base text-gray-700 font-normal">Risk Score: <span class="font-bold">${result.risk_score}%</span></p>
+                            <p class="text-sm text-gray-500 font-normal">Explanation: ${result.explanation}</p>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error('Error fetching SMS analysis:', error);
+                    smsResultDiv.innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+                }
+            });
+
+            retrainBtn.addEventListener('click', () => {
+                showConfirmModal(
+                    'Retrain Models',
+                    'Are you sure you want to retrain the models? This may take a moment.',
+                    async (confirmed) => {
+                        if (confirmed) {
+                            try {
+                                showMessageModal('Retraining', 'Please wait while the models are being retrained...');
+                                const response = await fetch('/retrain', { method: 'POST' });
+                                const result = await response.json();
+                                if (!response.ok) {
+                                    throw new Error(result.message);
+                                }
+                                showMessageModal('Success', result.message);
+                                console.log('Retrain result:', result.message);
+                            } catch (error) {
+                                showMessageModal('Error', `Retraining failed: ${error.message}`);
+                                console.error('Error during retraining:', error);
+                            }
+                        }
+                    }
+                );
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+<!-- <!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detector</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .text-gradient {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+   <Main Container>
+     <div class="space-y-8 w-full max-w-4xl">
+
+        <!-- Header and Retrain Button -->
+        <!-- <div class="flex flex-col md:flex-row items-center justify-between w-full">
+            <h1 class="text-4xl font-extrabold text-gray-800 text-gradient mb-4 md:mb-0">Phishing Detector</h1>
+            <button id="retrain-btn"
+                    class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-4 rounded-full transition-colors shadow-lg">
+                Retrain Models
+            </button>
+        </div> -->
+
+        <!-- Cards Container -->
+        <!-- <div class="grid grid-cols-1 md:grid-cols-2 gap-8"> -->
+
+            <!-- URL Checker Card -->
+            <!-- <div class="bg-white p-8 rounded-xl shadow-2xl flex flex-col space-y-6">
+                <h2 class="text-2xl font-bold text-gray-700">Check a URL</h2>
+                <input type="text" id="url-input" placeholder="Enter a URL (e.g., example.com)"
+                       class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-colors">
+                <button id="check-url-btn"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors shadow-md">
+                    Analyze URL
+                </button>
+                <div id="url-result" class="p-4 rounded-lg bg-gray-50 border border-gray-200 min-h-[100px] flex items-center justify-center text-center text-gray-500">
+                    Results will appear here.
+                </div>
+            </div> -->
+
+            <!-- SMS Checker Card -->
+            <!-- <div class="bg-white p-8 rounded-xl shadow-2xl flex flex-col space-y-6">
+                <h2 class="text-2xl font-bold text-gray-700">Check an SMS</h2>
+                <textarea id="sms-input" rows="3" placeholder="Enter SMS text..."
+                          class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-colors"></textarea>
+                <button id="check-sms-btn"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors shadow-md">
+                    Analyze SMS
+                </button>
+                <div id="sms-result" class="p-4 rounded-lg bg-gray-50 border border-gray-200 min-h-[100px] flex items-center justify-center text-center text-gray-500">
+                    Results will appear here.
+                </div>
+            </div> -->
+
+        </div>
+    </div>
+
+    <!-- Message Modal (hidden by default) -->
+    <!-- <div id="messageModal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <h3 id="messageModalTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="messageModalText" class="text-gray-600 mb-6"></p>
+            <button id="messageModalBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">OK</button>
+        </div>
+    </div> -->
+
+    <!-- Confirmation Modal (hidden by default) -->
+    <!-- <div id="confirmModal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <h3 id="confirmModalTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="confirmModalText" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmModalYes" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">Yes</button>
+                <button id="confirmModalCancel" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div> -->
+
+    <script>
+        // document.addEventListener('DOMContentLoaded', () => {
+        //     const urlInput = document.getElementById('url-input');
+        //     const smsInput = document.getElementById('sms-input');
+        //     const checkUrlBtn = document.getElementById('check-url-btn');
+        //     const checkSmsBtn = document.getElementById('check-sms-btn');
+        //     const retrainBtn = document.getElementById('retrain-btn');
+        //     const urlResultDiv = document.getElementById('url-result');
+        //     const smsResultDiv = document.getElementById('sms-result'); 
+
+            // Modal elements
+            // const messageModal = document.getElementById('messageModal');
+            // const messageModalTitle = document.getElementById('messageModalTitle');
+            // const messageModalText = document.getElementById('messageModalText');
+            // const messageModalBtn = document.getElementById('messageModalBtn');
+
+            // const confirmModal = document.getElementById('confirmModal');
+            // const confirmModalTitle = document.getElementById('confirmModalTitle');
+            // const confirmModalText = document.getElementById('confirmModalText');
+            // const confirmModalYes = document.getElementById('confirmModalYes');
+            // const confirmModalCancel = document.getElementById('confirmModalCancel');
+
+            // let currentConfirmCallback = null;
+
+            // // Function to show a simple message modal
+            // function showMessageModal(title, message) {
+            //     messageModalTitle.textContent = title;
+            //     messageModalText.textContent = message;
+            //     messageModal.classList.remove('hidden');
+            // }
+
+            // // Function to show a confirmation modal
+            // function showConfirmModal(title, message, onConfirm) {
+            //     confirmModalTitle.textContent = title;
+            //     confirmModalText.textContent = message;
+            //     currentConfirmCallback = onConfirm;
+            //     confirmModal.classList.remove('hidden');
+            // }
+
+            // // Hide modals when their buttons are clicked
+            // messageModalBtn.addEventListener('click', () => {
+            //     messageModal.classList.add('hidden');
+            // });
+
+            // confirmModalYes.addEventListener('click', () => {
+            //     confirmModal.classList.add('hidden');
+            //     if (currentConfirmCallback) {
+            //         currentConfirmCallback(true);
+            //     }
+            // });
+
+            // confirmModalCancel.addEventListener('click', () => {
+            //     confirmModal.classList.add('hidden');
+            //     if (currentConfirmCallback) {
+            //         currentConfirmCallback(false);
+            //     }
+            // });
+
+            // // Handle button clicks
+            // checkUrlBtn.addEventListener('click', async () => {
+            //     const url = urlInput.value.trim();
+            //     if (!url) {
+            //         showMessageModal('Error', 'Please enter a URL to check.');
+            //         return;
+            //     }
+
+            //     urlResultDiv.innerHTML = '<span class="text-gray-500">Analyzing...</span>';
+            //     try {
+            //         const response = await fetch('/check-url', {
+            //             method: 'POST',
+            //             headers: {
+            //                 'Content-Type': 'application/json'
+            //             },
+            //             body: JSON.stringify({ url })
+            //         });
+            //         const result = await response.json();
+
+            //         if (response.ok) {
+            //             const score = result.risk_score;
+            //             const prediction = result.prediction.toUpperCase();
+            //             const color = prediction === 'PHISHING' ? 'text-red-600' : 'text-green-600';
+            //             urlResultDiv.innerHTML = `
+            //                 <div class="text-left w-full space-y-2">
+            //                     <p class="text-sm text-gray-500">Analysis complete:</p>
+            //                     <p class="text-xl font-bold ${color}">${prediction}</p>
+            //                     <p class="text-base text-gray-700">Risk Score: <span class="font-bold">${score}%</span></p>
+            //                     <p class="text-sm text-gray-500">Explanation: ${result.explanation}</p>
+            //                 </div>
+            //             `;
+            //         } else {
+            //             throw new Error(result.error || 'Failed to get a response from the server.');
+            //         }
+            //     } catch (error) {
+            //         showMessageModal('Analysis Failed', error.message);
+            //         urlResultDiv.innerHTML = '<span class="text-red-500">Error analyzing URL.</span>';
+            //     }
+            // });
+
+//             checkSmsBtn.addEventListener('click', async () => {
+//                 const sms = smsInput.value.trim();
+//                 if (!sms) {
+//                     showMessageModal('Error', 'Please enter SMS text to check.');
+//                     return;
+//                 }
+
+//                 smsResultDiv.innerHTML = '<span class="text-gray-500">Analyzing...</span>';
+//                 try {
+//                     const response = await fetch('/check-sms', {
+//                         method: 'POST',
+//                         headers: {
+//                             'Content-Type': 'application/json'
+//                         },
+//                         body: JSON.stringify({ sms })
+//                     });
+//                     const result = await response.json();
+
+//                     if (response.ok) {
+//                         const score = result.risk_score;
+//                         const prediction = result.prediction.toUpperCase();
+//                         const color = prediction === 'PHISHING' ? 'text-red-600' : 'text-green-600';
+//                         smsResultDiv.innerHTML = `
+//                             <div class="text-left w-full space-y-2">
+//                                 <p class="text-sm text-gray-500">Analysis complete:</p>
+//                                 <p class="text-xl font-bold ${color}">${prediction}</p>
+//                                 <p class="text-base text-gray-700">Risk Score: <span class="font-bold">${score}%</span></p>
+//                                 <p class="text-sm text-gray-500">Explanation: ${result.explanation}</p>
+//                             </div>
+//                         `;
+//                     } else {
+//                         throw new Error(result.error || 'Failed to get a response from the server.');
+//                     }
+//                 } catch (error) {
+//                     showMessageModal('Analysis Failed', error.message);
+//                     smsResultDiv.innerHTML = '<span class="text-red-500">Error analyzing SMS.</span>';
+//                 }
+//             });
+
+//             retrainBtn.addEventListener('click', () => {
+//                 showConfirmModal(
+//                     'Retrain Models',
+//                     'Are you sure you want to retrain the models? This may take a moment.',
+//                     async (confirmed) => {
+//                         if (confirmed) {
+//                             showMessageModal('Retraining', 'Please wait while the models are being retrained...');
+//                             try {
+//                                 const response = await fetch('/retrain', {
+//                                     method: 'POST'
+//                                 });
+//                                 const result = await response.json();
+//                                 if (response.ok) {
+//                                     showMessageModal('Success', result.message);
+//                                 } else {
+//                                     throw new Error(result.message || 'Failed to retrain models.');
+//                                 }
+//                             } catch (error) {
+//                                 showMessageModal('Retraining Failed', error.message);
+//                             }
+//                         }
+//                     }
+//                 );
+//             });
+//         });
+//     </script>
+// </body>
+// </html> 
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            transition: background-color 0.3s ease;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .result-box {
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            transition: all 0.5s ease;
+            text-align: center;
+            border: 2px solid;
+            animation: fadeIn 0.8s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .phishing {
+            background-color: #fef2f2;
+            color: #b91c1c;
+            border-color: #ef4444;
+        }
+        .safe {
+            background-color: #f0fdf4;
+            color: #15803d;
+            border-color: #22c55e;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container bg-white p-8 rounded-3xl shadow-2xl space-y-8">
+        <h1 class="text-4xl font-extrabold text-center text-gray-800">Phishing Detector</h1>
+        <p class="text-center text-gray-500">
+            A real-time tool to classify URLs and SMS messages as safe or phishing.
+        </p>
+
+        <div class="flex justify-center mb-6">
+            <button id="url-tab" class="tab-button px-6 py-3 rounded-full font-bold text-lg focus:outline-none bg-blue-500 text-white shadow-lg">Check URL</button>
+            <button id="sms-tab" class="tab-button px-6 py-3 rounded-full font-bold text-lg focus:outline-none bg-gray-200 text-gray-700 ml-4">Check SMS</button>
+        </div>
+
+        <div class="card p-8 space-y-6">
+            <div id="url-section">
+                <input type="text" id="url-input" placeholder="Paste a URL here..." class="w-full p-4 text-lg border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <button id="url-button" class="w-full mt-4 py-4 rounded-xl text-white font-bold text-lg bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-transform transform hover:scale-105">Analyze URL</button>
+            </div>
+
+            <div id="sms-section" class="hidden">
+                <textarea id="sms-input" rows="4" placeholder="Paste an SMS message here..." class="w-full p-4 text-lg border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition-colors"></textarea>
+                <button id="sms-button" class="w-full mt-4 py-4 rounded-xl text-white font-bold text-lg bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-transform transform hover:scale-105">Analyze SMS</button>
+            </div>
+            
+            <div id="loader" class="hidden flex justify-center items-center py-8">
+                <div class="spinner"></div>
+            </div>
+
+            <div id="result" class="hidden result-box">
+                <h2 id="result-title" class="text-3xl font-extrabold mb-2"></h2>
+                <p id="result-score" class="text-xl"></p>
+                <p id="result-explanation" class="mt-2 text-gray-600"></p>
+            </div>
+
+            <!-- Custom Modal for Confirmation -->
+            <!-- <div id="custom-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+                    <h3 class="text-xl font-bold mb-4">Are you sure?</h3>
+                    <p class="text-gray-700 mb-6">This will reset all data and retrain the models. This action is irreversible.</p>
+                    <div class="flex justify-end space-x-4">
+                        <button id="modal-cancel" class="px-4 py-2 rounded-md font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300">Cancel</button>
+                        <button id="modal-confirm" class="px-4 py-2 rounded-md font-semibold text-white bg-red-600 hover:bg-red-700">Continue</button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="retrain-button" class="w-full mt-4 py-3 rounded-xl text-blue-600 font-bold border-2 border-blue-600 bg-transparent hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-colors">Retrain Models</button>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlTab = document.getElementById('url-tab');
+            const smsTab = document.getElementById('sms-tab');
+            const urlSection = document.getElementById('url-section');
+            const smsSection = document.getElementById('sms-section');
+            const urlButton = document.getElementById('url-button');
+            const smsButton = document.getElementById('sms-button');
+            const urlInput = document.getElementById('url-input');
+            const smsInput = document.getElementById('sms-input');
+            const resultBox = document.getElementById('result');
+            const resultTitle = document.getElementById('result-title');
+            const resultScore = document.getElementById('result-score');
+            const loader = document.getElementById('loader');
+
+            const retrainButton = document.getElementById('retrain-button');
+            const customModal = document.getElementById('custom-modal');
+            const modalConfirm = document.getElementById('modal-confirm');
+            const modalCancel = document.getElementById('modal-cancel');
+
+            let currentMode = 'url';
+
+            const API_BASE_URL = window.location.origin;
+
+            const updateTabStyles = () => {
+                if (currentMode === 'url') {
+                    urlTab.classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+                    urlTab.classList.remove('bg-gray-200', 'text-gray-700');
+                    smsTab.classList.remove('bg-blue-500', 'text-white', 'shadow-lg');
+                    smsTab.classList.add('bg-gray-200', 'text-gray-700');
+                    urlSection.classList.remove('hidden');
+                    smsSection.classList.add('hidden');
+                } else {
+                    smsTab.classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+                    smsTab.classList.remove('bg-gray-200', 'text-gray-700');
+                    urlTab.classList.remove('bg-blue-500', 'text-white', 'shadow-lg');
+                    urlTab.classList.add('bg-gray-200', 'text-gray-700');
+                    smsSection.classList.remove('hidden');
+                    urlSection.classList.add('hidden');
+                }
+            };
+
+            urlTab.addEventListener('click', () => {
+                currentMode = 'url';
+                updateTabStyles();
+                resultBox.classList.add('hidden');
+            });
+
+            smsTab.addEventListener('click', () => {
+                currentMode = 'sms';
+                updateTabStyles();
+                resultBox.classList.add('hidden');
+            });
+
+            const showResult = (prediction, score) => {
+                resultBox.classList.remove('hidden');
+                resultBox.classList.remove('safe', 'phishing');
+
+                if (prediction === 'phishing') {
+                    resultBox.classList.add('phishing');
+                    resultTitle.textContent = 'Phishing Detected!';
+                } else {
+                    resultBox.classList.add('safe');
+                    resultTitle.textContent = 'Looks Safe!';
+                }
+                resultScore.textContent = `Risk Score: ${score}%`;
+            };
+
+            const callApi = async (endpoint, data) => {
+                resultBox.classList.add('hidden');
+                loader.classList.remove('hidden');
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        showResult(result.prediction, result.risk_score);
+                    } else {
+                        resultTitle.textContent = "Error";
+                        resultScore.textContent = result.error || "An error occurred.";
+                        resultBox.classList.add('phishing');
+                        resultBox.classList.remove('safe');
+                        resultBox.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    resultTitle.textContent = "Connection Error";
+                    resultScore.textContent = "Could not connect to the server.";
+                    resultBox.classList.add('phishing');
+                    resultBox.classList.remove('safe');
+                    resultBox.classList.remove('hidden');
+                } finally {
+                    loader.classList.add('hidden');
+                }
+            };
+
+            urlButton.addEventListener('click', () => {
+                const url = urlInput.value.trim();
+                if (url) {
+                    callApi('/check-url', { url });
+                }
+            });
+
+            smsButton.addEventListener('click', () => {
+                const sms = smsInput.value.trim();
+                if (sms) {
+                    callApi('/check-sms', { sms });
+                }
+            });
+
+            retrainButton.addEventListener('click', () => {
+                customModal.classList.remove('hidden');
+                customModal.classList.add('flex');
+            });
+
+            modalCancel.addEventListener('click', () => {
+                customModal.classList.add('hidden');
+                customModal.classList.remove('flex');
+            });
+
+            modalConfirm.addEventListener('click', async () => {
+                customModal.classList.add('hidden');
+                customModal.classList.remove('flex');
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/retrain`, {
+                        method: 'POST',
+                    });
+
+                    if (response.ok) {
+                        alert("Models have been successfully retrained!");
+                    } else {
+                        alert("Failed to retrain models.");
+                    }
+                } catch (error) {
+                    alert("Failed to connect to the server for retraining.");
+                }
+            });
+        });
+    </script>
+</body>
+</html> --> -->
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH Phishing Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800">Phishing Detector</h1>
+            <p class="mt-2 text-gray-500">Secure your links and messages. Instantly check for phishing risk.</p>
+        </div>
+
+        <div class="space-y-6">
+            <div>
+                <label for="input-field" class="block text-sm font-medium text-gray-700">Paste URL or SMS</label>
+                <div class="mt-1">
+                    <textarea id="input-field" rows="4" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-4 border"></textarea>
+                </div>
+            </div>
+
+            <button id="check-button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                Check Risk
+            </button>
+        </div>
+
+        <div id="result-box" class="mt-8 hidden p-6 rounded-md border border-gray-200">
+            <h2 class="text-xl font-semibold mb-2 text-gray-800">Analysis Result</h2>
+            <div id="status-message" class="flex items-center space-x-2">
+                <span id="status-icon" class="text-2xl"></span>
+                <span id="status-text" class="text-lg font-bold"></span>
+            </div>
+            <div class="mt-4">
+                <p id="risk-score" class="text-sm font-medium text-gray-600"></p>
+                <p id="explanation" class="mt-2 text-sm text-gray-500"></p>
+            </div>
+        </div>
+
+        <div id="loading-spinner" class="mt-8 hidden flex justify-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+    </div>
+
+    <script>
+        const checkButton = document.getElementById('check-button');
+        const inputField = document.getElementById('input-field');
+        const resultBox = document.getElementById('result-box');
+        const statusIcon = document.getElementById('status-icon');
+        const statusText = document.getElementById('status-text');
+        const riskScoreText = document.getElementById('risk-score');
+        const explanationText = document.getElementById('explanation');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        checkButton.addEventListener('click', async () => {
+            const inputValue = inputField.value.trim();
+            if (!inputValue) {
+                alert('Please enter a URL or SMS.');
+                return;
+            }
+
+            loadingSpinner.classList.remove('hidden');
+            resultBox.classList.add('hidden');
+
+            const isUrl = inputValue.startsWith('http') || inputValue.includes('.');
+            const endpoint = isUrl ? '/check-url' : '/check-sms';
+            const payload = isUrl ? { url: inputValue } : { sms: inputValue };
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                statusText.textContent = data.prediction;
+                riskScoreText.textContent = `Risk Score: ${data.risk_score}%`;
+                explanationText.textContent = data.explanation;
+
+                if (data.prediction === 'Phishing') {
+                    statusIcon.textContent = '⚠️';
+                    statusIcon.className = 'text-2xl text-red-500';
+                    statusText.className = 'text-lg font-bold text-red-500';
+                } else {
+                    statusIcon.textContent = '✅';
+                    statusIcon.className = 'text-2xl text-green-500';
+                    statusText.className = 'text-lg font-bold text-green-500';
+                }
+
+                resultBox.classList.remove('hidden');
+
+            } catch (error) {
+                statusIcon.textContent = '❌';
+                statusIcon.className = 'text-2xl text-red-500';
+                statusText.textContent = 'Error';
+                explanationText.textContent = `An error occurred while connecting to the server. Please ensure the server is running correctly.`;
+                resultBox.classList.remove('hidden');
+            } finally {
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html> -->
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing & Spam Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Phishing & Spam Detection System</h1>
+        
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h4>URL Phishing Detection</h4>
+            </div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <input type="text" id="url-input" class="form-control" placeholder="Paste URL here..." aria-label="URL Input">
+                    <button class="btn btn-primary" type="button" id="check-url-btn">Check URL</button>
+                </div>
+                <div id="url-result" class="mt-3"></div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h4>SMS/WhatsApp Spam Detection</h4>
+            </div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <textarea class="form-control" id="sms-input" rows="3" placeholder="Paste SMS/text here..."></textarea>
+                </div>
+                <button class="btn btn-success w-100" type="button" id="check-sms-btn">Check SMS</button>
+                <div id="sms-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html> -->
