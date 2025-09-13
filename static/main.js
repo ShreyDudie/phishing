@@ -9,7 +9,7 @@ document.getElementById('check-url-btn').addEventListener('click', () => {
 
     resultDiv.innerHTML = `<div class="alert alert-info" role="alert">Checking...</div>`;
 
-    fetch('/api/classify-url', {
+    fetch('https://phishing-ntjk.onrender.com/check-url', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -58,7 +58,7 @@ document.getElementById('check-sms-btn').addEventListener('click', () => {
 
     resultDiv.innerHTML = `<div class="alert alert-info" role="alert">Checking...</div>`;
 
-    fetch('/api/classify-sms', {
+    fetch('https://phishing-ntjk.onrender.com/check-sms', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

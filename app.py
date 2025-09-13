@@ -7,6 +7,10 @@ from tldextract import tldextract
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS  # <-- This import is needed
 import numpy as np
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
 
 # A list of sensitive words to check for in URLs
 SENSITIVE_WORDS = ['login', 'account', 'verify', 'update', 'signin', 'bank', 'secure', 'paypal', 'ebay', 'amazon']
@@ -352,7 +356,7 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Heroku assigns port dynamically
+    port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
 
 
