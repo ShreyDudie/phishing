@@ -9,4 +9,4 @@ tldextract
 idna
 matplotlib
 seaborn
-gunicorn
+gunicorn==20.1.0
