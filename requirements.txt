@@ -9,4 +9,6 @@ tldextract
 idna
 matplotlib
 seaborn
+fastapi
+uvicorn
 gunicorn==20.1.0

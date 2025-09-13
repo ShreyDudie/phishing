@@ -8,6 +8,16 @@ from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS  # <-- This import is needed
 import numpy as np
 from flask_cors import CORS
+from fastapi import FastAPI
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app = Flask(__name__)
 CORS(app)
@@ -257,8 +267,8 @@ def check_url():
             explanation = "The URL appears to be legitimate based on the analysis."
         
         return jsonify({
-            "prediction": prediction,
-            "risk_score": risk_score,
+            "classification": prediction,
+            "score": risk_score,
             "explanation": explanation
         })
     except Exception as e:
@@ -300,10 +310,18 @@ def check_sms():
             explanation = "This message appears to be safe."
 
         return jsonify({
-            "prediction": prediction,
-            "risk_score": risk_score,
-            "explanation": explanation
+            "classification": prediction.lower(),  # e.g. 'phishing' or 'safe'
+            "confidence": {
+                "spam": risk_score if prediction.lower() == "phishing" else 100 - risk_score,
+                "ham": 100 - risk_score if prediction.lower() == "phishing" else risk_score
+            },
+            "risk_score": risk_score  # explicitly add risk_score here
         })
+        # return jsonify({
+        #     "prediction": prediction,
+        #     "risk_score": risk_score,
+        #     "explanation": explanation
+        # })
     except Exception as e:
         print(f"Error during SMS prediction: {e}")
         return jsonify({"error": f"Error analyzing SMS: {str(e)}"}), 500

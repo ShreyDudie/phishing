@@ -197,7 +197,7 @@
                 urlResultDiv.innerHTML = `<span class="text-gray-500">Analyzing...</span>`;
                 
                 try {
-                    const response = await fetch('/check-url', {
+                    const response = await fetch('https://phishing-ntjk.onrender.com/check-url', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ url })
@@ -211,13 +211,13 @@
                     const result = await response.json();
                     console.log('URL analysis result:', result);
 
-                    const colorClass = result.prediction.toLowerCase() === 'phishing' ? 'warning' : 'safe';
-                    const textColor = result.prediction.toLowerCase() === 'phishing' ? 'text-red-600' : 'text-green-600';
+                    const colorClass = result.classification.toLowerCase() === 'phishing' ? 'warning' : 'safe';
+                    const textColor = result.classification.toLowerCase() === 'phishing' ? 'text-red-600' : 'text-green-600';
                     urlResultDiv.innerHTML = `
                         <div class="result-box ${colorClass} text-left space-y-2">
                             <p class="text-sm font-normal text-gray-500">Analysis complete:</p>
-                            <p class="text-xl font-bold ${textColor}">${result.prediction}</p>
-                            <p class="text-base text-gray-700 font-normal">Risk Score: <span class="font-bold">${result.risk_score}%</span></p>
+                            <p class="text-xl font-bold ${textColor}">${result.classification}</p>
+                            <p class="text-base text-gray-700 font-normal">Risk Score: <span class="font-bold">${result.score}%</span></p>
                             <p class="text-sm text-gray-500 font-normal">Explanation: ${result.explanation}</p>
                         </div>
                     `;
@@ -237,7 +237,7 @@
                 smsResultDiv.innerHTML = `<span class="text-gray-500">Analyzing...</span>`;
 
                 try {
-                    const response = await fetch('/check-sms', {
+                    const response = await fetch(' https://phishing-ntjk.onrender.com/check-sms', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ sms })
@@ -251,13 +251,13 @@
                     const result = await response.json();
                     console.log('SMS analysis result:', result);
 
-                    const colorClass = result.prediction.toLowerCase() === 'phishing' ? 'warning' : 'safe';
-                    const textColor = result.prediction.toLowerCase() === 'phishing' ? 'text-red-600' : 'text-green-600';
+                    const colorClass = result.classification.toLowerCase() === 'phishing' ? 'warning' : 'safe';
+                    const textColor = result.classification.toLowerCase() === 'phishing' ? 'text-red-600' : 'text-green-600';
                     smsResultDiv.innerHTML = `
                         <div class="result-box ${colorClass} text-left space-y-2">
                             <p class="text-sm font-normal text-gray-500">Analysis complete:</p>
-                            <p class="text-xl font-bold ${textColor}">${result.prediction}</p>
-                            <p class="text-base text-gray-700 font-normal">Risk Score: <span class="font-bold">${result.risk_score}%</span></p>
+                            <p class="text-xl font-bold ${textColor}">${result.classificationtion}</p>
+                            <p class="text-base text-gray-700 font-normal">Risk Score: <span class="font-bold">${result.score}%</span></p>
                             <p class="text-sm text-gray-500 font-normal">Explanation: ${result.explanation}</p>
                         </div>
                     `;
@@ -275,7 +275,7 @@
                         if (confirmed) {
                             try {
                                 showMessageModal('Retraining', 'Please wait while the models are being retrained...');
-                                const response = await fetch('/retrain', { method: 'POST' });
+                                const response = await fetch(' https://phishing-ntjk.onrender.com/retrain', { method: 'POST' });
                                 const result = await response.json();
                                 if (!response.ok) {
                                     throw new Error(result.message);
@@ -292,6 +292,7 @@
             });
         });
     </script>
+    <script src="main.js"></script>
 </body>
 </html>
 
